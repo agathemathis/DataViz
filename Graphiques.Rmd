@@ -7,6 +7,118 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library("sf")
+library("rnaturalearth")
+library("rnaturalearthdata")
+library(ggplot2)
+library(dplyr)
+require(maps)
+require(viridis)
+require(plotly)
+library(leaflet)
+```
+
+```{r}
+volcans <- read.csv("volcano.csv")
+volcans$Year <- as.factor(volcans$Year)
+volcans$Month <- as.factor(volcans$Month)
+volcans$Day <- as.factor(volcans$Day)
+volcans$VEI <- as.factor(volcans$VEI)
+summary(volcans)
+
 ```
 
 # Création
+```{r}
+world_map <- map_data("world")
+```
+
+
+```{r}
+rennes_bb <- osmdata::getbb('World') %>% 
+  as.numeric() ##get bounding box
+
+zone_map <- ggmap::get_stamenmap(bbox = rennes_bb, 
+                                 zoom = 13) 
+
+p <- volcans %>%
+  ggplot() +
+  geom_polygon(data = volcans,
+               aes(x=Longitude, y = Latitude,
+                   group = Location),
+               fill="grey",
+               alpha=0.3) +
+  geom_point(aes(x=Longitude,
+                 y=Latitude,
+                 size=DEATHS,
+                 color=DEATHS,
+                 text=Name,
+                 alpha=DEATHS) )
+
+p
+```
+
+```{r}
+p <- d %>%
+  ggplot() +
+  geom_polygon(data = volcans,
+               aes(x=Longitude, y = Latitude,
+                   group = Location),
+               fill="grey",
+               alpha=0.3) +
+  geom_point(aes(x=Longitude,
+                 y=Latitude,
+                 size=DEATHS,
+                 color=DEATHS,
+                 text='text',
+                 alpha=DEATHS) )
+```
+
+
+```{r}
+
+# Caracteristique d'un fond de carte Amerique du Sud
+fond_carte <- list(
+  showland = TRUE,
+  subunitwidth = 1,
+  countrywidth = 1,
+  subunitcolor = toRGB("white"),
+  countrycolor = toRGB("white")
+)
+# Carte
+plot_geo(brazil_pop,
+         lon = ~long, lat = ~lat, 
+         # texte au passage de la souris
+         text = ~pop_text,
+         # taille du marker selon la pop
+         marker = ~ list(size = sqrt(pop / 10000) + 1, 
+                         line = list(width = 0)),
+         # couleur selon le quartile
+         color = ~pop_quantile
+) %>%
+  layout(geo = fond_carte, title = "Populations")
+```
+#penser a centrer réduire les données
+```{r}
+# Initialize the leaflet map with the leaflet() function
+m <- leaflet()
+# Then we Add default OpenStreetMap map tiles
+m <- addTiles(m)
+m
+
+greenLeafIcon <- makeIcon(
+  iconUrl = "https://cdn-icons-png.flaticon.com/512/2227/2227010.png",
+  iconWidth = ~volcans$DEATHS, iconHeight = ~volcans$DEATHS,
+  iconAnchorX = ~volcans$DEATHS, iconAnchorY = ~volcans$DEATHS,
+  shadowUrl = "https://cdn-icons-png.flaticon.com/512/2227/2227010.png",
+  shadowWidth = ~volcans$DEATHS, shadowHeight = ~volcans$DEATHS,
+  shadowAnchorX = ~volcans$DEATHS, shadowAnchorY = ~volcans$DEATHS
+)
+
+# Same stuff but using the %>% operator
+m <- leaflet(data = volcans) %>% 
+  addTiles() %>%
+  addMarkers(~Longitude,~Latitude,popup = ~as.character(Name), label = ~as.character(Name),icon = greenLeafIcon)
+m
+```
+
